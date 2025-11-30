@@ -1,11 +1,12 @@
 [package]
 name = "ibkr"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2024"
 description = "A Rust client for the Interactive Brokers TWS API"
 license = "AGPL-3.0"
 authors = ["Wxveshack"]
 keywords = ["ibkr", "interactive-brokers", "trading", "tws", "finance"]
 categories = ["api-bindings", "finance"]
+repository = "https://github.com/Wxveshack/ibkr"
 
 [dependencies]
