@@ -8,14 +8,14 @@ use std::io::{self, Write};
 
 /// Create a null-terminated field from a value.
 pub fn make_field<T: std::fmt::Display>(value: T) -> String {
-    format!("{}\0", value)
+    format!("{value}\0")
 }
 
 /// Build a complete message payload from fields.
 ///
 /// Each field is converted to a null-terminated string.
 pub fn make_message(fields: &[&dyn std::fmt::Display]) -> String {
-    fields.iter().map(|f| make_field(f)).collect()
+    fields.iter().map(make_field).collect()
 }
 
 /// Write a length-prefixed message to a writer.
@@ -83,18 +83,18 @@ impl<'a> FieldIterator<'a> {
     }
 
     /// Get the next field parsed as the specified type.
-    pub fn next<T: std::str::FromStr>(&mut self) -> Option<T> {
+    pub fn next_parsed<T: std::str::FromStr>(&mut self) -> Option<T> {
         self.next_string().and_then(|s| s.parse().ok())
     }
 
     /// Get the next field as i32, defaulting to 0 for empty/invalid.
     pub fn next_i32(&mut self) -> i32 {
-        self.next().unwrap_or(0)
+        self.next_parsed().unwrap_or(0)
     }
 
     /// Get the next field as f64, defaulting to 0.0 for empty/invalid.
     pub fn next_f64(&mut self) -> f64 {
-        self.next().unwrap_or(0.0)
+        self.next_parsed().unwrap_or(0.0)
     }
 
     /// Get the next field as bool (0 = false, anything else = true).
@@ -152,7 +152,7 @@ mod tests {
         let buf = b"17\0123\045.5\0hello\0";
         let mut iter = FieldIterator::new(buf);
 
-        assert_eq!(iter.next::<u32>(), Some(17));
+        assert_eq!(iter.next_parsed::<u32>(), Some(17));
         assert_eq!(iter.next_i32(), 123);
         assert_eq!(iter.next_f64(), 45.5);
         assert_eq!(iter.next_string(), Some("hello"));

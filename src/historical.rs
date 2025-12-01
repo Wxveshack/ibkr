@@ -92,11 +92,11 @@ pub enum Duration {
 impl Duration {
     pub fn as_string(&self) -> String {
         match self {
-            Self::Seconds(n) => format!("{} S", n),
-            Self::Days(n) => format!("{} D", n),
-            Self::Weeks(n) => format!("{} W", n),
-            Self::Months(n) => format!("{} M", n),
-            Self::Years(n) => format!("{} Y", n),
+            Self::Seconds(n) => format!("{n} S"),
+            Self::Days(n) => format!("{n} D"),
+            Self::Weeks(n) => format!("{n} W"),
+            Self::Months(n) => format!("{n} M"),
+            Self::Years(n) => format!("{n} Y"),
         }
     }
 }
