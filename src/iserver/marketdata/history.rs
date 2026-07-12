@@ -1,38 +1,21 @@
 //! `GET /iserver/marketdata/history` — historical market data for a contract.
-//!
-//! Official docs: <https://www.interactivebrokers.com/campus/ibkr-api-page/cpapi-v1/#hist-md>
-//! Limit: 5 concurrent requests (429 on excess); max 1000 data points per response.
-//!
-//! This is the canonical shape every other endpoint component imitates: a `Request`
-//! that renders its inputs into a query, a `Response` that mirrors the wire object,
-//! and `impl Endpoint for Request` tying the two together. No HTTP logic lives here.
+//! Docs: <https://www.interactivebrokers.com/campus/ibkr-api-page/cpapi-v1/#hist-md>
 
-use crate::client::Endpoint;
+use crate::Endpoint;
 use serde::Deserialize;
 
-/// Request parameters. `conid` and `bar` are required; the rest are optional.
 #[derive(Debug, Clone)]
 pub struct Request {
-    /// Contract identifier for the ticker of interest. Required.
     pub conid: u64,
-    /// Individual bar size. Required. See [`BarSize`].
     pub bar: BarSize,
-    /// Overall duration to return. Gateway defaults to `1w` when omitted.
-    /// Format: `{1-30}min, {1-8}h, {1-1000}d, {1-792}w, {1-182}m, {1-15}y`.
     pub period: Option<String>,
-    /// Exchange to source data from. Empty/None = the contract's primary exchange.
     pub exchange: Option<String>,
-    /// Start of the request duration, UTC, formatted `YYYYMMDD-HH:mm:ss`.
     pub start_time: Option<String>,
-    /// Include data outside regular trading hours.
     pub outside_rth: Option<bool>,
-    /// Type of data to return. Gateway defaults to `Trades` when omitted.
     pub source: Option<Source>,
 }
 
-/// Allowed bar sizes. Modeling these as an enum makes an invalid `bar` value
-/// unrepresentable on the client side. (The docs' period-vs-bar "Step Size"
-/// compatibility matrix is not enforced here — the gateway rejects bad combos.)
+/// Allowed `bar` values. The period-vs-bar "Step Size" matrix is not enforced here.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum BarSize {
     Min1,
@@ -53,7 +36,6 @@ pub enum BarSize {
 }
 
 impl BarSize {
-    /// The wire representation the gateway expects.
     pub fn as_str(self) -> &'static str {
         match self {
             BarSize::Min1 => "1min",
@@ -75,7 +57,6 @@ impl BarSize {
     }
 }
 
-/// Type of historical data to return.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Source {
     Trades,
@@ -84,7 +65,6 @@ pub enum Source {
 }
 
 impl Source {
-    /// The wire representation the gateway expects.
     pub fn as_str(self) -> &'static str {
         match self {
             Source::Trades => "Trades",
@@ -126,67 +106,42 @@ impl Endpoint for Request {
     }
 }
 
-/// The `history-data` response object. Every metadata field is optional so a missing
-/// or renamed field never fails the decode; `data` carries the bars.
-///
-/// Fields are the union of the docs' prose table and its JSON example (which drift):
-/// `tradingDayDuration`, `chartPanStartTime`, and `direction` appear only in the
-/// example. serde ignores any field present in neither, so undocumented additions
-/// are also safe.
+/// `history-data` response. Fields are optional + `serde(default)` and unknown fields
+/// ignored, so the docs' prose-vs-example drift never breaks the decode.
 #[derive(Debug, Clone, Default, Deserialize)]
 #[serde(rename_all = "camelCase", default)]
 pub struct Response {
-    /// Internal request identifier.
     pub server_id: Option<String>,
-    /// Ticker symbol of the contract.
     pub symbol: Option<String>,
-    /// Long name of the ticker symbol.
     pub text: Option<String>,
-    /// Price increment from the display rules. Docs' prose says String; the JSON
-    /// example shows a number — kept as raw JSON to absorb either form.
+    /// Prose says String, example shows a number — raw JSON absorbs either form.
     pub price_factor: Option<serde_json::Value>,
-    /// Initial time of the request, UTC, `YYYYMMDD-HH:mm:ss`.
     pub start_time: Option<String>,
-    /// High over the series, formatted `%h/%v/%t` (price scaled by priceFactor / volume /
-    /// minutes-from-start), e.g. `"17510/472117.45/0"`.
+    /// Formatted `%price/%volume/%minutes`, e.g. `"17510/472117.45/0"` — not a plain number.
     pub high: Option<String>,
-    /// Low over the series, formatted `%l/%v/%t`.
+    /// Formatted like [`Self::high`].
     pub low: Option<String>,
-    /// Duration of the historical data request.
     pub time_period: Option<String>,
-    /// Number of seconds in a bar.
     pub bar_length: Option<i64>,
-    /// Market data availability code (see the docs' Market Data Availability section).
     pub md_availability: Option<String>,
-    /// Delay, in milliseconds, to process the request.
     pub mkt_data_delay: Option<i64>,
-    /// Whether the returned data was outside regular trading hours.
     pub outside_rth: Option<bool>,
-    /// Trading day duration, in minutes. (Example-only field.)
     pub trading_day_duration: Option<i64>,
-    /// Factor the volume is multiplied by.
     pub volume_factor: Option<i64>,
-    /// Price display rule (internal use).
     pub price_display_rule: Option<i64>,
-    /// Price display value (internal use).
     pub price_display_value: Option<String>,
-    /// Chart pan start time. (Example-only field.)
     pub chart_pan_start_time: Option<String>,
-    /// Direction of the series. (Example-only field.)
     pub direction: Option<i64>,
-    /// Whether the data can return negative values.
     pub negative_capable: Option<bool>,
-    /// Message version (internal use).
     pub message_version: Option<i64>,
-    /// The historical bars for the requested period.
+    /// The historical bars.
     pub data: Vec<Bar>,
-    /// Total number of data points returned (a count, not the bars themselves).
+    /// Count of data points — not the bars themselves (those are [`Self::data`]).
     pub points: Option<i64>,
-    /// Time taken to return the details.
     pub travel_time: Option<i64>,
 }
 
-/// A single OHLCV bar. Raw IBKR field names, 1:1 with the wire.
+/// A single bar. Raw IBKR names; note the field order is o/c/h/l/v, not OHLC.
 #[derive(Debug, Clone, Deserialize)]
 pub struct Bar {
     /// Open.
@@ -199,7 +154,7 @@ pub struct Bar {
     pub l: f64,
     /// Volume.
     pub v: f64,
-    /// Epoch unix timestamp of the bar.
+    /// Epoch unix timestamp.
     pub t: i64,
 }
 
@@ -207,8 +162,7 @@ pub struct Bar {
 mod tests {
     use super::*;
 
-    /// Official example response from the docs — proves both structs decode without a
-    /// live gateway.
+    /// Official example response from the docs.
     const SAMPLE: &str = r#"{
         "serverId":"20477","symbol":"AAPL","text":"APPLE INC","priceFactor":100,
         "startTime":"20230818-08:00:00","high":"17510/472117.45/0","low":"17170/472117.45/0",
@@ -225,17 +179,16 @@ mod tests {
         let resp: Response = serde_json::from_str(SAMPLE).expect("decode sample");
         assert_eq!(resp.symbol.as_deref(), Some("AAPL"));
         assert_eq!(resp.high.as_deref(), Some("17510/472117.45/0"));
-        assert_eq!(resp.trading_day_duration, Some(1440)); // example-only field is captured
+        assert_eq!(resp.trading_day_duration, Some(1440));
         assert_eq!(resp.data.len(), 1);
         let bar = &resp.data[0];
         assert_eq!(bar.o, 173.4);
         assert_eq!(bar.t, 16923456000);
-        assert_eq!(resp.points, Some(0)); // count field, distinct from data.len()
+        assert_eq!(resp.points, Some(0));
     }
 
     #[test]
     fn ignores_unknown_fields() {
-        // A field in neither the prose table nor the example must not break the decode.
         let resp: Response =
             serde_json::from_str(r#"{"symbol":"AAPL","data":[],"futureField":123}"#)
                 .expect("decode with unknown field");
