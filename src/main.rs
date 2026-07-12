@@ -1,31 +1,25 @@
-use ibkr::{BarSize, Client, Contract, Duration, WhatToShow};
+//! Demo: fetch one week of daily bars for AAPL (conid 265598) over the local gateway.
 
-#[tokio::main]
-async fn main() -> ibkr::Result<()> {
-    println!("Connecting to TWS...");
-    let client = Client::connect("127.0.0.1:7496", 1).await?;
-    println!("Connected to TWS v{}", client.server_version());
+use ibkr::iserver::marketdata::history;
+use ibkr::Client;
 
-    // Request historical data for AMZN
-    println!("\nRequesting AMZN daily bars for the past week...");
-    let contract = Contract::stock("AMZN", "SMART", "USD");
-    let bars = client
-        .historical_data(
-            contract,
-            Duration::Weeks(1),
-            BarSize::Day1,
-            WhatToShow::Trades,
-            true,
-        )
-        .await?;
+fn main() {
+    let client = Client::new();
 
-    println!("Received {} bars:", bars.len());
-    for bar in &bars {
-        println!(
-            "  {} O:{:.2} H:{:.2} L:{:.2} C:{:.2} V:{:.0}",
-            bar.date, bar.open, bar.high, bar.low, bar.close, bar.volume
-        );
+    let hist = client
+        .send(history::Request {
+            conid: 265598,
+            bar: history::BarSize::Day1,
+            period: Some("1w".to_string()),
+            exchange: None,
+            start_time: None,
+            outside_rth: None,
+            source: None,
+        })
+        .expect("history request failed");
+
+    println!("{:?}: {} bars", hist.symbol, hist.data.len());
+    for bar in &hist.data {
+        println!("  t={} o={} h={} l={} c={} v={}", bar.t, bar.o, bar.h, bar.l, bar.c, bar.v);
     }
-
-    Ok(())
 }
