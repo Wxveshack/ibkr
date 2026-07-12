@@ -114,10 +114,9 @@ pub struct Response {
     pub server_id: Option<String>,
     pub symbol: Option<String>,
     pub text: Option<String>,
-    /// Prose says String, example shows a number — raw JSON absorbs either form.
-    pub price_factor: Option<serde_json::Value>,
+    pub price_factor: Option<i64>,
     pub start_time: Option<String>,
-    /// Formatted `%price/%volume/%minutes`, e.g. `"17510/472117.45/0"` — not a plain number.
+    /// Composite `%price/%volume/%minutes`, not a plain number.
     pub high: Option<String>,
     /// Formatted like [`Self::high`].
     pub low: Option<String>,
@@ -130,6 +129,7 @@ pub struct Response {
     pub volume_factor: Option<i64>,
     pub price_display_rule: Option<i64>,
     pub price_display_value: Option<String>,
+    pub chart_annotations: Option<String>,
     pub chart_pan_start_time: Option<String>,
     pub direction: Option<i64>,
     pub negative_capable: Option<bool>,
@@ -178,6 +178,7 @@ mod tests {
     fn decodes_official_sample() {
         let resp: Response = serde_json::from_str(SAMPLE).expect("decode sample");
         assert_eq!(resp.symbol.as_deref(), Some("AAPL"));
+        assert_eq!(resp.price_factor, Some(100));
         assert_eq!(resp.high.as_deref(), Some("17510/472117.45/0"));
         assert_eq!(resp.trading_day_duration, Some(1440));
         assert_eq!(resp.data.len(), 1);
