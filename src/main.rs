@@ -1,16 +1,25 @@
-// One hardcoded request against the local IBKR Client Portal Web API gateway.
-// conid 265598 = AAPL. Dumps the raw response. Change the conid to query another stock.
+//! Demo: fetch one week of daily bars for AAPL (conid 265598) over the local gateway.
+
+use ibkr::iserver::marketdata::history;
+use ibkr::Client;
+
 fn main() {
-    let url = "https://localhost:5000/v1/api/iserver/marketdata/history\
-               ?conid=265598&period=1w&bar=1d";
+    let client = Client::new();
 
-    let client = reqwest::blocking::Client::builder()
-        .danger_accept_invalid_certs(true) // gateway serves a self-signed cert
-        .user_agent("ibkr/0.3") // gateway 403s requests with no User-Agent
-        .build()
-        .expect("build client");
+    let hist = client
+        .send(history::Request {
+            conid: 265598,
+            bar: history::BarSize::Day1,
+            period: Some("1w".to_string()),
+            exchange: None,
+            start_time: None,
+            outside_rth: None,
+            source: None,
+        })
+        .expect("history request failed");
 
-    let resp = client.get(url).send().expect("request failed");
-    println!("HTTP {}", resp.status());
-    println!("{}", resp.text().expect("read body"));
+    println!("{:?}: {} bars", hist.symbol, hist.data.len());
+    for bar in &hist.data {
+        println!("  t={} o={} h={} l={} c={} v={}", bar.t, bar.o, bar.h, bar.l, bar.c, bar.v);
+    }
 }
