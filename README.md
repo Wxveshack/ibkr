@@ -1,36 +1,9 @@
 # ibkr
 
-A Rust client for Interactive Brokers' TWS API.
+```bash
+# 1. Start the Client Portal Gateway (from its directory), then log in at https://localhost:5000
+bin/run.sh root/conf.yaml     # Windows: bin\run.bat root\conf.yaml
 
-## Usage
-
-```rust
-use ibkr::{Client, Contract, BarSize, Duration, WhatToShow};
-
-#[tokio::main]
-async fn main() -> ibkr::Result<()> {
-    let client = Client::connect("127.0.0.1:7496", 1).await?;
-
-    let contract = Contract::stock("AAPL", "SMART", "USD");
-    let bars = client.historical_data(
-        contract,
-        Duration::Days(5),
-        BarSize::Day1,
-        WhatToShow::Trades,
-        true,
-    ).await?;
-
-    for bar in bars {
-        println!("{}: {}", bar.date, bar.close);
-    }
-    Ok(())
-}
+# 2. Fire the request
+cargo run
 ```
-
-## Architecture
-
-See [CLAUDE.md](CLAUDE.md).
-
-## IBKR Documentation
-
-https://www.interactivebrokers.com/campus/ibkr-api-page/twsapi-doc/#api-introduction

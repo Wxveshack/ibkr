@@ -1,31 +1,16 @@
-use ibkr::{BarSize, Client, Contract, Duration, WhatToShow};
+// One hardcoded request against the local IBKR Client Portal Web API gateway.
+// conid 265598 = AAPL. Dumps the raw response. Change the conid to query another stock.
+fn main() {
+    let url = "https://localhost:5000/v1/api/iserver/marketdata/history\
+               ?conid=265598&period=1w&bar=1d";
 
-#[tokio::main]
-async fn main() -> ibkr::Result<()> {
-    println!("Connecting to TWS...");
-    let client = Client::connect("127.0.0.1:7496", 1).await?;
-    println!("Connected to TWS v{}", client.server_version());
+    let client = reqwest::blocking::Client::builder()
+        .danger_accept_invalid_certs(true) // gateway serves a self-signed cert
+        .user_agent("ibkr/0.3") // gateway 403s requests with no User-Agent
+        .build()
+        .expect("build client");
 
-    // Request historical data for AMZN
-    println!("\nRequesting AMZN daily bars for the past week...");
-    let contract = Contract::stock("AMZN", "SMART", "USD");
-    let bars = client
-        .historical_data(
-            contract,
-            Duration::Weeks(1),
-            BarSize::Day1,
-            WhatToShow::Trades,
-            true,
-        )
-        .await?;
-
-    println!("Received {} bars:", bars.len());
-    for bar in &bars {
-        println!(
-            "  {} O:{:.2} H:{:.2} L:{:.2} C:{:.2} V:{:.0}",
-            bar.date, bar.open, bar.high, bar.low, bar.close, bar.volume
-        );
-    }
-
-    Ok(())
+    let resp = client.get(url).send().expect("request failed");
+    println!("HTTP {}", resp.status());
+    println!("{}", resp.text().expect("read body"));
 }
