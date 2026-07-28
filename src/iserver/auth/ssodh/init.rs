@@ -1,5 +1,5 @@
 //! `POST /iserver/auth/ssodh/init` — open (or re-establish) the brokerage session after auth.
-//! Params travel as query so they're covered by the OAuth signature.
+//! `publish`/`compete` travel as a JSON body (not signed), matching IBKR's reference client.
 //! Docs: <https://www.interactivebrokers.com/campus/ibkr-api-page/cpapi-v1/#ssodh-init>
 
 use crate::Endpoint;
@@ -19,11 +19,8 @@ impl Endpoint for Request {
         "/iserver/auth/ssodh/init".to_string()
     }
 
-    fn query(&self) -> Vec<(String, String)> {
-        vec![
-            ("publish".to_string(), self.publish.to_string()),
-            ("compete".to_string(), self.compete.to_string()),
-        ]
+    fn body(&self) -> Option<serde_json::Value> {
+        Some(serde_json::json!({ "publish": self.publish, "compete": self.compete }))
     }
 }
 

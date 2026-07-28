@@ -62,8 +62,11 @@ impl Client {
                 signer.authorization(E::METHOD.as_str(), &url, &query),
             );
         }
-        if let Some(body) = ep.body() {
-            req = req.json(&body);
+        match ep.body() {
+            Some(body) => req = req.json(&body),
+            // Empty POSTs need an explicit Content-Length: 0 or the gateway 411s.
+            None if E::METHOD == reqwest::Method::POST => req = req.body(""),
+            None => {}
         }
         Ok(req.send()?.error_for_status()?.json()?)
     }

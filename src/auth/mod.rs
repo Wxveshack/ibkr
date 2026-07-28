@@ -119,12 +119,17 @@ pub fn mint_live_session_token(
     header.push(("oauth_signature".into(), signature));
     header.push(("realm".into(), creds.realm.clone()));
 
-    let resp: live_session_token::Response = http
+    let http_resp = http
         .post(&url)
         .header(AUTHORIZATION, authorization_header(&header))
-        .send()?
-        .error_for_status()?
-        .json()?;
+        .body("") // gateway 411s an empty POST without an explicit Content-Length: 0
+        .send()?;
+    let status = http_resp.status();
+    let text = http_resp.text()?;
+    if !status.is_success() {
+        return Err(Error::Auth(format!("live_session_token {status}: {text}")));
+    }
+    let resp: live_session_token::Response = serde_json::from_str(&text)?;
 
     // K = B^a mod p; LST = HMAC_SHA1(K_bytes, secret_bytes).
     let b = BigUint::parse_bytes(resp.diffie_hellman_response.as_bytes(), 16)

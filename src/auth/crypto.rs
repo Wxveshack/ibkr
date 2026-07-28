@@ -104,22 +104,24 @@ pub(crate) fn hex_encode(bytes: &[u8]) -> String {
     bytes.iter().map(|b| format!("{b:02x}")).collect()
 }
 
-/// PKCS#3 `DHParameter ::= SEQUENCE { prime INTEGER, base INTEGER }`.
-#[derive(der::Sequence)]
-struct DhParams<'a> {
-    prime: der::asn1::UintRef<'a>,
-    generator: der::asn1::UintRef<'a>,
-}
-
-/// Extract `(prime, generator)` from a `dhparam.pem`.
+/// Extract `(prime, generator)` from a `dhparam.pem`. PKCS#3 is
+/// `SEQUENCE { prime INTEGER, base INTEGER, privateValueLength INTEGER OPTIONAL }`; we read the
+/// first two and ignore any trailing optional field (OpenSSL sometimes emits it).
 pub(crate) fn parse_dh_params(pem: &str) -> Result<(num_bigint::BigUint, num_bigint::BigUint), Error> {
-    use der::Decode;
+    use der::{asn1::UintRef, Decode, Header, SliceReader, Tag};
     let (_, der) = pem_rfc7468::decode_vec(pem.as_bytes())
         .map_err(|e| Error::Auth(format!("dhparam pem: {e}")))?;
-    let params = DhParams::from_der(&der).map_err(|e| Error::Auth(format!("dhparam der: {e}")))?;
+    let mut reader = SliceReader::new(&der).map_err(|e| Error::Auth(format!("dhparam der: {e}")))?;
+
+    let header = Header::decode(&mut reader).map_err(|e| Error::Auth(format!("dhparam der: {e}")))?;
+    if header.tag != Tag::Sequence {
+        return Err(Error::Auth("dhparam: expected SEQUENCE".into()));
+    }
+    let prime = UintRef::decode(&mut reader).map_err(|e| Error::Auth(format!("dhparam prime: {e}")))?;
+    let generator = UintRef::decode(&mut reader).map_err(|e| Error::Auth(format!("dhparam generator: {e}")))?;
     Ok((
-        num_bigint::BigUint::from_bytes_be(params.prime.as_bytes()),
-        num_bigint::BigUint::from_bytes_be(params.generator.as_bytes()),
+        num_bigint::BigUint::from_bytes_be(prime.as_bytes()),
+        num_bigint::BigUint::from_bytes_be(generator.as_bytes()),
     ))
 }
 
@@ -179,9 +181,11 @@ mod tests {
 
     #[test]
     fn parse_dh_params_extracts_prime_and_generator() {
-        // SEQUENCE { INTEGER 0x00DEADBEEF, INTEGER 0x02 } — the DHParameter shape.
+        // SEQUENCE { prime 0x00DEADBEEF, generator 0x02, privateValueLength 0x05 } — the trailing
+        // optional field must be ignored.
         let der = [
-            0x30, 0x0a, 0x02, 0x05, 0x00, 0xde, 0xad, 0xbe, 0xef, 0x02, 0x01, 0x02,
+            0x30, 0x0d, 0x02, 0x05, 0x00, 0xde, 0xad, 0xbe, 0xef, 0x02, 0x01, 0x02, 0x02, 0x01,
+            0x05,
         ];
         let pem = format!(
             "-----BEGIN DH PARAMETERS-----\n{}\n-----END DH PARAMETERS-----\n",
