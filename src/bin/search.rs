@@ -21,13 +21,28 @@ fn main() {
         session.authenticated, session.connected, session.competing
     );
 
-    let hits = client
-        .send(search::Request {
+    let t = client.tickle().expect("tickle");
+    eprintln!("[ok] tickle session id: {:?}", t.session);
+
+    // /iserver data endpoints can 503 briefly while the brokerage backend warms up.
+    let mut attempt = 0;
+    let hits = loop {
+        attempt += 1;
+        match client.send(search::Request {
             symbol: "AAPL".into(),
             name: Some(false),
             sec_type: Some(search::SecType::Stk),
-        })
-        .expect("secdef search");
+        }) {
+            Ok(hits) => break hits,
+            Err(ibkr::Error::Http(e))
+                if e.status() == Some(reqwest::StatusCode::SERVICE_UNAVAILABLE) && attempt < 6 =>
+            {
+                eprintln!("[warn] 503 (backend warming up), retry {attempt}/5 in 2s…");
+                std::thread::sleep(std::time::Duration::from_secs(2));
+            }
+            Err(e) => panic!("secdef search: {e}"),
+        }
+    };
 
     println!("{} contracts:", hits.len());
     for c in hits.iter().take(5) {
