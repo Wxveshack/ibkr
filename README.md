@@ -4,7 +4,7 @@ Typed Rust client for the [Interactive Brokers Client Portal Web API](https://ww
 
 ```toml
 [dependencies]
-ibkr = "0.4"
+ibkr = "0.5"
 ```
 
 Two transports, one `Client`:
