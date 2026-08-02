@@ -1,6 +1,6 @@
 //! OAuth 1.0a signing primitives: thin wrappers over the crypto crates, plus the
 //! signature base string. IBKR's live-session-token sequencing lives in the parent module.
-//! Reference: <https://www.interactivebrokers.com/campus/ibkr-api-page/oauth-1-0a-extended/>
+//! Reference: <https://www.interactivebrokers.com/docs/web-api/authentication/oauth-1a/authenticated-requests>
 
 use base64::{engine::general_purpose::STANDARD, Engine};
 use hmac::{Hmac, Mac};

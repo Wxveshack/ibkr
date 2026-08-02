@@ -2,6 +2,5 @@
 Cargo.lock
 /twsapi_macunix
 
-# OAuth key material and credential payloads — never commit
+# OAuth key material — never commit
 *.pem
-ibkr-secret.json

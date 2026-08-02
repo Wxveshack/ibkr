@@ -58,7 +58,8 @@ impl std::fmt::Debug for LiveSessionToken {
 }
 
 /// Signs authenticated requests with HMAC-SHA256 keyed by the live session token.
-pub struct Signer {
+/// Internal: consumers get one via [`Client::oauth`](crate::Client::oauth).
+pub(crate) struct Signer {
     consumer_key: String,
     realm: String,
     access_token: String,
@@ -66,7 +67,7 @@ pub struct Signer {
 }
 
 impl Signer {
-    pub fn new(creds: &Credentials, lst: &LiveSessionToken) -> Result<Self, Error> {
+    pub(crate) fn new(creds: &Credentials, lst: &LiveSessionToken) -> Result<Self, Error> {
         Ok(Signer {
             consumer_key: creds.consumer_key.clone(),
             realm: creds.realm.clone(),
@@ -77,7 +78,7 @@ impl Signer {
 
     /// Build the `Authorization: OAuth …` header for a request. `query` params are folded into
     /// the signature base string but not the header (they travel in the URL).
-    pub fn authorization(&self, method: &str, url: &str, query: &[(String, String)]) -> String {
+    pub(crate) fn authorization(&self, method: &str, url: &str, query: &[(String, String)]) -> String {
         let oauth = vec![
             ("oauth_consumer_key".into(), self.consumer_key.clone()),
             ("oauth_nonce".into(), crypto::nonce()),

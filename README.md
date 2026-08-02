@@ -1,6 +1,6 @@
 # ibkr
 
-Typed Rust client for the [Interactive Brokers Client Portal Web API](https://www.interactivebrokers.com/campus/ibkr-api-page/cpapi-v1/).
+Typed Rust client for the [Interactive Brokers Client Portal Web API](https://www.interactivebrokers.com/docs/web-api/introduction).
 
 ```toml
 [dependencies]
@@ -38,7 +38,7 @@ let hits = client.send(search::Request {
 ## OAuth
 
 No gateway, no browser, no daily login. Register a consumer key and upload your public keys
-per [IBKR's OAuth 1.0a guide](https://www.interactivebrokers.com/campus/ibkr-api-page/oauth-1-0a-extended/).
+per [IBKR's OAuth 1.0a guide](https://www.interactivebrokers.com/docs/web-api/authentication/oauth-1a/first-party-oauth/registration-process).
 
 > **A newly registered consumer key does not work right away.** IBKR loads self-service OAuth
 > keys during its daily server maintenance window — typically around midnight. Until that runs,
@@ -85,10 +85,15 @@ jq -n \
 
 `realm` is `limited_poa`, or `test_realm` for IBKR's `TESTCONS` demo key.
 
-Keep the result out of the repo — `*.pem` and `ibkr-secret.json` are gitignored. Piping it from a
-secrets manager (AWS Secrets Manager, Vault, …) into your process avoids writing it to disk at all:
+The recipe writes to stdout so the payload never has to touch disk — pipe it straight into a
+secrets manager, then pipe it back out at run time. `*.pem` is gitignored; keep the generated
+keys out of the repo too.
 
 ```bash
-aws secretsmanager get-secret-value --secret-id ibkr/oauth/paper \
+# store (region must come from --region, AWS_REGION, or your profile)
+… | aws secretsmanager create-secret --name ibkr-oauth --secret-string file:///dev/stdin
+
+# run
+aws secretsmanager get-secret-value --secret-id ibkr-oauth \
   --query SecretString --output text | cargo run --example search
 ```

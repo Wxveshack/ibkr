@@ -7,7 +7,7 @@
 //! than HMAC keyed by the token, and the token being minted here is the very thing `send` needs to
 //! sign anything. The phases share state (`a`, the decrypted secret), so they live together.
 //!
-//! Docs: <https://www.interactivebrokers.com/campus/ibkr-api-page/oauth-1-0a-extended/#lst>
+//! Docs: <https://www.interactivebrokers.com/docs/web-api/authentication/oauth-1a/lst/compute-live-session-token>
 
 use num_bigint::BigUint;
 use reqwest::header::AUTHORIZATION;

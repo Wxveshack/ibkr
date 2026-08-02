@@ -1,6 +1,6 @@
 //! `POST /iserver/auth/ssodh/init` — open (or re-establish) the brokerage session after auth.
 //! `publish`/`compete` travel as a JSON body (not signed), matching IBKR's reference client.
-//! Docs: <https://www.interactivebrokers.com/campus/ibkr-api-page/cpapi-v1/#ssodh-init>
+//! Docs: <https://www.interactivebrokers.com/docs/web-api/api-reference/trading-session/initialize-session>
 
 use crate::Endpoint;
 use serde::Deserialize;

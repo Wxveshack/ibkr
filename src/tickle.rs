@@ -1,5 +1,5 @@
 //! `POST /tickle` — keep the session alive; returns the session id used for WebSocket auth.
-//! Docs: <https://www.interactivebrokers.com/campus/ibkr-api-page/cpapi-v1/#tickle>
+//! Docs: <https://www.interactivebrokers.com/docs/web-api/api-reference/trading-session/get-session-token>
 
 use crate::Endpoint;
 use serde::Deserialize;
