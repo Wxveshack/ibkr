@@ -1,5 +1,5 @@
 //! `GET /iserver/secdef/search` — search contracts by symbol or company name.
-//! Docs: <https://www.interactivebrokers.com/campus/ibkr-api-page/cpapi-v1/#search-symbol-contract>
+//! Docs: <https://www.interactivebrokers.com/docs/web-api/api-reference/trading-contracts/get-contract-symbols>
 
 use crate::Endpoint;
 use serde::Deserialize;

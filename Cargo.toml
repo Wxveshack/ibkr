@@ -11,3 +11,14 @@ reqwest = { version = "0.12", default-features = false, features = ["blocking", 
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 thiserror = "2"
+# OAuth 1.0a: RSA-SHA256 signing + RSA decrypt, HMAC-SHA1/256, Diffie-Hellman modpow.
+rsa = { version = "0.9", features = ["pem"] }
+sha1 = "0.10"
+sha2 = { version = "0.10", features = ["oid"] } # oid: DigestInfo prefix for RSA-SHA256
+hmac = "0.12"
+num-bigint = "0.4"
+base64 = "0.22"
+percent-encoding = "2"
+rand = "0.8"
+der = { version = "0.7", features = ["derive"] } # decode dhparam.pem SEQUENCE { prime, generator }
+pem-rfc7468 = { version = "0.7", features = ["alloc"] }

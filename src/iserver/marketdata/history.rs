@@ -1,5 +1,5 @@
 //! `GET /iserver/marketdata/history` — historical market data for a contract.
-//! Docs: <https://www.interactivebrokers.com/campus/ibkr-api-page/cpapi-v1/#hist-md>
+//! Docs: <https://www.interactivebrokers.com/docs/web-api/api-reference/trading-market-data/get-md-history>
 
 use crate::Endpoint;
 use serde::Deserialize;
