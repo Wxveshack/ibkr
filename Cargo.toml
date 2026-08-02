@@ -1,8 +1,8 @@
 [package]
 name = "ibkr"
-version = "0.4.0"
+version = "0.5.0"
 edition = "2024"
-description = "Minimal request against the Interactive Brokers Client Portal Web API"
+description = "Typed client for the Interactive Brokers Client Portal Web API, with first-party OAuth 1.0a for headless access"
 license = "AGPL-3.0"
 repository = "https://github.com/AG3NTZ3R0/ibkr"
 
