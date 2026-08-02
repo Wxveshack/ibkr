@@ -1,8 +1,8 @@
 //! Typed Rust client for the Interactive Brokers Client Portal Web API.
 //!
 //! [`Client`] executes any [`Endpoint`]; endpoints live under [`iserver`] and [`oauth`].
-//! For headless use, [`auth`] mints a live session token from [`Credentials`] and
-//! [`Client::oauth`] signs every request. Canonical example: [`iserver::marketdata::history`].
+//! For headless use, [`oauth::live_session_token`] mints a token from [`Credentials`] and
+//! [`Client::oauth`] signs every request with it. Canonical example: [`iserver::marketdata::history`].
 
 pub mod auth;
 pub mod client;

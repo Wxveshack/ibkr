@@ -1,17 +1,16 @@
-//! First-party OAuth 1.0a: credentials, per-request signing, and live-session-token minting.
-//! The signing primitives live in [`crypto`]; the wire route in [`crate::oauth::live_session_token`].
+//! First-party OAuth 1.0a: credentials and per-request signing. The signing primitives live in
+//! the private `crypto` submodule; minting the token is a route, and lives in
+//! [`crate::oauth::live_session_token`].
 
-mod crypto;
+pub(crate) mod crypto;
 
-use num_bigint::BigUint;
-use reqwest::header::AUTHORIZATION;
 use serde::Deserialize;
 
 use crate::error::Error;
-use crate::oauth::live_session_token;
 
 /// The credential bundle, deserialized from a JSON payload (source is the caller's concern).
-#[derive(Debug, Clone, Deserialize)]
+/// `Debug` is hand-written to keep the private keys and token secret out of logs.
+#[derive(Clone, Deserialize)]
 pub struct Credentials {
     pub consumer_key: String,
     /// `test_realm` only for the `TESTCONS` demo key; otherwise `limited_poa`.
@@ -31,13 +30,31 @@ impl Credentials {
     }
 }
 
-/// A minted live session token, valid ~24h.
-#[derive(Debug, Clone)]
+impl std::fmt::Debug for Credentials {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Credentials")
+            .field("consumer_key", &self.consumer_key)
+            .field("realm", &self.realm)
+            .finish_non_exhaustive()
+    }
+}
+
+/// A minted live session token, valid ~24h. `Debug` redacts the token: it keys every
+/// request signature.
+#[derive(Clone)]
 pub struct LiveSessionToken {
     /// base64-encoded token.
     pub token: String,
     /// Epoch-millis expiration reported by the gateway.
     pub expiration: i64,
+}
+
+impl std::fmt::Debug for LiveSessionToken {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("LiveSessionToken")
+            .field("expiration", &self.expiration)
+            .finish_non_exhaustive()
+    }
 }
 
 /// Signs authenticated requests with HMAC-SHA256 keyed by the live session token.
@@ -77,83 +94,22 @@ impl Signer {
             base.as_bytes(),
         )));
 
-        let mut header = oauth;
-        header.push(("oauth_signature".into(), signature));
-        header.push(("realm".into(), self.realm.clone()));
-        authorization_header(&header)
+        signed_header(oauth, signature, &self.realm)
     }
 }
 
-/// Mint a live session token: Diffie-Hellman challenge, RSA-signed request to
-/// [`live_session_token::PATH`], then compute and validate the token per IBKR's scheme.
-pub fn mint_live_session_token(
-    creds: &Credentials,
-    http: &reqwest::blocking::Client,
-    base: &str,
-) -> Result<LiveSessionToken, Error> {
-    let (prime, generator) = crypto::parse_dh_params(&creds.dhparam_pem)?;
-    let a = crypto::dh_random();
-    let challenge = generator.modpow(&a, &prime).to_str_radix(16);
-
-    // Decrypt the access token secret; its hex prepends the base string, its bytes key the LST.
-    let enc_key = crypto::load_private_key(&creds.private_encryption_pem)?;
-    let secret = crypto::rsa_decrypt(&enc_key, &crypto::b64_decode(&creds.access_token_secret)?)?;
-    let prepend = crypto::hex_encode(&secret);
-
-    let url = format!("{base}{}", live_session_token::PATH);
-    let params = vec![
-        ("diffie_hellman_challenge".into(), challenge),
-        ("oauth_consumer_key".into(), creds.consumer_key.clone()),
-        ("oauth_nonce".into(), crypto::nonce()),
-        ("oauth_signature_method".into(), "RSA-SHA256".into()),
-        ("oauth_timestamp".into(), crypto::timestamp()),
-        ("oauth_token".into(), creds.access_token.clone()),
-    ];
-
-    let base_string = format!("{prepend}{}", crypto::signature_base_string("POST", &url, &params));
-    let sig_key = crypto::load_private_key(&creds.private_signature_pem)?;
-    let signature =
-        crypto::percent_encode(&crypto::b64_encode(&crypto::rsa_sha256_sign(&sig_key, base_string.as_bytes())?));
-
-    let mut header = params;
-    header.push(("oauth_signature".into(), signature));
-    header.push(("realm".into(), creds.realm.clone()));
-
-    let http_resp = http
-        .post(&url)
-        .header(AUTHORIZATION, authorization_header(&header))
-        .body("") // gateway 411s an empty POST without an explicit Content-Length: 0
-        .send()?;
-    let status = http_resp.status();
-    let text = http_resp.text()?;
-    if !status.is_success() {
-        return Err(Error::Auth(format!("live_session_token {status}: {text}")));
-    }
-    let resp: live_session_token::Response = serde_json::from_str(&text)?;
-
-    // K = B^a mod p; LST = HMAC_SHA1(K_bytes, secret_bytes).
-    let b = BigUint::parse_bytes(resp.diffie_hellman_response.as_bytes(), 16)
-        .ok_or_else(|| Error::Auth("diffie_hellman_response is not valid hex".into()))?;
-    let k = b.modpow(&a, &prime);
-    let lst = crypto::hmac_sha1(&k.to_bytes_be(), &secret);
-
-    // Validate against the signature the gateway returned.
-    let check = crypto::hex_encode(&crypto::hmac_sha1(&lst, creds.consumer_key.as_bytes()));
-    if check != resp.live_session_token_signature {
-        return Err(Error::Auth("live session token validation failed".into()));
-    }
-
-    Ok(LiveSessionToken {
-        token: crypto::b64_encode(&lst),
-        expiration: resp.live_session_token_expiration,
-    })
-}
-
-/// `OAuth k1="v1", k2="v2", …` with keys sorted alphabetically.
-fn authorization_header(params: &[(String, String)]) -> String {
-    let mut sorted = params.to_vec();
-    sorted.sort_by(|a, b| a.0.cmp(&b.0));
-    let inner = sorted
+/// Close out an `Authorization: OAuth …` header: append the signature and realm, then render
+/// `k1="v1", k2="v2", …` with keys sorted. Both signing paths — HMAC here, RSA in
+/// [`crate::oauth::live_session_token`] — end this way.
+pub(crate) fn signed_header(
+    mut params: Vec<(String, String)>,
+    signature: String,
+    realm: &str,
+) -> String {
+    params.push(("oauth_signature".into(), signature));
+    params.push(("realm".into(), realm.into()));
+    params.sort();
+    let inner = params
         .iter()
         .map(|(k, v)| format!("{k}=\"{v}\""))
         .collect::<Vec<_>>()

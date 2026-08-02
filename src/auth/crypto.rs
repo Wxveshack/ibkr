@@ -27,7 +27,7 @@ pub(crate) fn percent_encode(s: &str) -> String {
 /// matching IBKR's reference. The LST caller prepends the decrypted-secret hex before signing.
 pub(crate) fn signature_base_string(method: &str, url: &str, params: &[(String, String)]) -> String {
     let mut sorted = params.to_vec();
-    sorted.sort_by(|a, b| a.0.cmp(&b.0));
+    sorted.sort();
     let joined = sorted
         .iter()
         .map(|(k, v)| format!("{k}={v}"))
@@ -39,7 +39,7 @@ pub(crate) fn signature_base_string(method: &str, url: &str, params: &[(String, 
 pub(crate) fn nonce() -> String {
     let mut b = [0u8; 16];
     OsRng.fill_bytes(&mut b);
-    b.iter().map(|x| format!("{x:02x}")).collect()
+    hex_encode(&b)
 }
 
 pub(crate) fn timestamp() -> String {

@@ -35,7 +35,7 @@ impl Client {
             .user_agent(concat!("ibkr/", env!("CARGO_PKG_VERSION")))
             .build()
             .expect("build reqwest client");
-        crate::auth::mint_live_session_token(creds, &http, OAUTH_URL)
+        crate::oauth::live_session_token::mint(creds, &http, OAUTH_URL)
     }
 
     /// Talk to `api.ibkr.com` headless, signing each request with the live session token.
